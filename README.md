@@ -7,7 +7,7 @@ This repository assumes glove embeddings.
 Download Glove embeddings at:  https://nlp.stanford.edu/projects/glove/
 And place `glove.6B/glove.6B.300d.txt` in `data/embeddings/glove.6B/glove.6B.300d.txt`.
 
-##Usage 
+## Usage: 
 To train the model with CNN-encoder and RNN-generator :
 
 ```
