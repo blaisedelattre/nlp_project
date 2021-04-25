@@ -1,17 +1,17 @@
 import torch
 import torch.nn as nn
-import torch.autograd as autograd
 import torch.nn.functional as F
-import pdb
+import torch.autograd as autograd
 
-class CNN(nn.Module):
 
-    def __init__(self, args, max_pool_over_time=False):
-        """
-        input args.embedding_dim
-        output args.filter_num * len( args.filters)
-        """
-        super(CNN, self).__init__()
+class RCNN(nn.Module):
+    """
+    Recurrent Convolutional Neural Networks for Text Classification (2015)
+    """
+    def __init__(self, args, embedding_dim, hidden_size, max_pool_over_time=False, dropout=0.1):
+        super(RCNN, self).__init__()
+        self.lstm = nn.LSTM(embedding_dim, hidden_size, batch_first=True, bidirectional=False)
+        self.max_pool = max_pool_over_time
 
         self.args = args
         self.layers = []
@@ -19,16 +19,12 @@ class CNN(nn.Module):
             convs = []
             for filt in args.filters:
                 in_channels =  args.embedding_dim if layer == 0 else args.filter_num * len( args.filters)
-                # embedding dim 300
                 kernel_size = filt
                 new_conv = nn.Conv1d(in_channels=in_channels, out_channels=args.filter_num, kernel_size=kernel_size)
                 self.add_module( 'layer_'+str(layer)+'_conv_'+str(filt), new_conv)
                 convs.append(new_conv)
 
             self.layers.append(convs)
-
-        self.max_pool = max_pool_over_time
-
 
 
     def _conv(self, x):
@@ -55,13 +51,25 @@ class CNN(nn.Module):
         pool = F.max_pool1d(relu, relu.size(2)).squeeze(-1)
         return pool
 
-
     def forward(self, x):
+        #print('x', x.size())
         activ = self._conv(x)
+        # (Batch, Embed, Length)
+        #print('activ', activ.size())
+        # (Length, Batch, Embed)
+        activ = activ.permute(2, 0, 1)
+        #print("activ", activ.size())
+        # seq_len, batch, input_size
+        output, _ = self.lstm(activ)
+        #print("output", output.size())
         if self.max_pool:
-            activ =  self._pool(activ)
-        return activ
+            output =  self._pool(output.permute(1, 2, 0))
+            #print('activ pool', activ.size())
+            # (Batch, Embed)
+            output.permute(1, 0)
+            #print('activ pool', activ.size())
+        else:
+            # with generator
+            output = output.permute(1, 2,0)
 
-
-
-
+        return output

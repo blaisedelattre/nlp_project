@@ -98,13 +98,13 @@ def one_hot(label, num_class):
     return vec
 
 
-def gumbel_softmax(input, temperature, cuda):
-    noise = torch.rand(input.size())
+def gumbel_softmax(logits, temperature, cuda):
+    noise = torch.rand(logits.size())
     noise.add_(1e-9).log_().neg_()
     noise.add_(1e-9).log_().neg_()
     noise = autograd.Variable(noise)
     if cuda:
         noise = noise.cuda()
-    x = (input + noise) / temperature
+    x = (logits + noise) / temperature
     x = F.softmax(x.view(-1,  x.size()[-1]), dim=-1)
-    return x.view_as(input)
+    return x.view_as(logits)

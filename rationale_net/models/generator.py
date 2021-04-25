@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.autograd as autograd
 import torch.nn.functional as F
 import rationale_net.models.cnn as cnn
+import rationale_net.models.rnn_gen as rnn
+import rationale_net.models.rcnn as rcnn
 import rationale_net.utils.learn as learn
 import pdb
 
@@ -17,16 +19,25 @@ class Generator(nn.Module):
     def __init__(self, embeddings, args):
         super(Generator, self).__init__()
         vocab_size, hidden_dim = embeddings.shape
+        # vocab_size, hidden_dim 400001 300
         self.embedding_layer = nn.Embedding( vocab_size, hidden_dim)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
         self.embedding_layer.weight.requires_grad = False
-        self.args = args
-        if args.model_form == 'cnn':
-            self.cnn = cnn.CNN(args, max_pool_over_time = False)
 
+        self.args = args
+        if args.model_form_gen == 'cnn':
+            self.cnn = cnn.CNN(args, max_pool_over_time = False)
+        elif args.model_form_gen == 'rnn':
+            self.rnn = rnn.RNN(args)
+        elif args.model_form_gen == 'rcnn':
+            # does not work yet
+            self.rcnn = rcnn.RCNN(args, embedding_dim=hidden_dim, hidden_size=hidden_dim)
+
+        # why 2 ?
         self.z_dim = 2
 
-        self.hidden = nn.Linear((len(args.filters)* args.filter_num), self.z_dim)
+        # len(args.filters)* args.filter_num = 300
+        self.hidden = nn.Linear(len(args.filters)* args.filter_num, self.z_dim)
         self.dropout = nn.Dropout(args.dropout)
 
 
@@ -47,16 +58,33 @@ class Generator(nn.Module):
             Given input x_indx of dim (batch, length), return z (batch, length) such that z
             can act as element-wise mask on x
         '''
-        if self.args.model_form == 'cnn':
+        if self.args.model_form_gen == 'cnn':
             x = self.embedding_layer(x_indx.squeeze(1))
             if self.args.cuda:
                 x = x.cuda()
             x = torch.transpose(x, 1, 2) # Switch X to (Batch, Embed, Length)
-            activ = self.cnn(x)
+            activ = F.relu(self.cnn(x))
+            z = self.__z_forward(activ)
+        elif self.args.model_form_gen == 'rnn':
+            x = self.embedding_layer(x_indx.squeeze(1))
+            if self.args.cuda:
+                x = x.cuda()
+            #x = torch.transpose(x, 1, 2) # Switch X to (Batch, Embed, Length)
+            logits = self.rnn(x)
+            probs = learn.gumbel_softmax(logits, self.args.gumbel_temprature, self.args.cuda)
+            z = probs[:,:,1]
+        elif self.args.model_form_gen == 'rcnn':
+            x = self.embedding_layer(x_indx.squeeze(1))
+            # X to (Batch, Length, Embed)
+            if self.args.cuda:
+                x = x.cuda()
+            x = torch.transpose(x, 1, 2) # Switch X to (Batch, Embed, Length)
+            activ = self.rcnn(x)
+            # relu here
+            z = self.__z_forward(activ)
         else:
-            raise NotImplementedError("Model form {} not yet supported for generator!".format(args.model_form))
+            raise NotImplementedError("Model form {} not yet supported for generator!".format(args.model_form_gen))
 
-        z = self.__z_forward(F.relu(activ))
         mask = self.sample(z)
         return mask, z
 

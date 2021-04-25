@@ -184,6 +184,7 @@ def run_epoch(data_loader, train_model, model, gen, optimizer, step, args):
 
         x_indx = learn.get_x_indx(batch, args, eval_model)
         text = batch['text']
+        length = batch['length']
         y = autograd.Variable(batch['y'], volatile=eval_model)
 
         if args.cuda:
@@ -197,7 +198,7 @@ def run_epoch(data_loader, train_model, model, gen, optimizer, step, args):
         else:
             mask = None
 
-        logit, _ = model(x_indx, mask=mask)
+        logit, _ = model(x_indx, mask=mask, length=length)
 
         if args.use_as_tagger:
             logit = logit.view(-1, 2)

@@ -56,7 +56,7 @@ def getBeerEmbedding(args):
 def getGloveEmbedding(args):
     embedding_path='data/embeddings/glove.6B/glove.6B.300d.txt'
     lines = []
-    with open(embedding_path) as file:
+    with open(embedding_path, encoding="utf8") as file:
         lines = file.readlines()
         file.close()
     embedding_tensor = []

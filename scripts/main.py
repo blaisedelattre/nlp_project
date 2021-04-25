@@ -18,8 +18,18 @@ import pdb
 if __name__ == '__main__':
     # update args and print
     args = generic.parse_args()
-
-    embeddings, word_to_indx = embedding.get_embedding_tensor(args)
+    
+    if os.path.exists('embeddings_saves/saved.pkl'):
+        print("Load embedding")
+        save = pickle.load(open('embeddings_saves/saved.pkl', 'rb'))
+        embeddings = save["embeddings"]
+        word_to_indx = save["word_to_indx"]
+        args.embedding_dim = embeddings.shape[1]
+    else:
+        print("Compute and save embedding")
+        embeddings, word_to_indx = embedding.get_embedding_tensor(args)
+        save = {"embeddings" : embeddings, "word_to_indx" : word_to_indx}
+        pickle.dump(save, open("embeddings_saves/saved.pkl", "wb"))
 
     train_data, dev_data, test_data = dataset_factory.get_dataset(args, word_to_indx)
 
