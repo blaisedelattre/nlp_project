@@ -1,6 +1,6 @@
 # nlp_project
 
-from https://github.com/yala/text_nn based on Tao Lei's Rationalizing neural prediction.
+From https://github.com/yala/text_nn based on Tao Lei's Rationalizing neural prediction.
 
 ## Requirments
 This repository assumes glove embeddings.
